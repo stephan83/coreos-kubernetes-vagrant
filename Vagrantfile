@@ -10,11 +10,11 @@ NODE_SRC_PATH = File.join(File.dirname(__FILE__), "node.yml")
 MASTER_DST_PATH = File.join(File.dirname(__FILE__), "master.tmp.yml")
 NODE_DST_PATH = File.join(File.dirname(__FILE__), "node.tmp.yml")
 
-$num_instances = 4
+$num_instances = 2
 $update_channel = "alpha"
 #$expose_docker_tcp = 2375
 #$expose_etcd_tcp = 4001
-$expose_http = 3000
+#$expose_http = 3000
 $enable_serial_logging = false
 $vb_gui = false
 $vb_memory = 1024

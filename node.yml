@@ -52,5 +52,21 @@ coreos:
       Wants=docker.service
       [Service]
       Type=oneshot
-      ExecStart=/usr/bin/sh -c '[ -f /home/core/monitoring/heapster ] && docker load -i /home/core/monitoring/heapster || echo "No image found."'
-      ExecStart=/usr/bin/sh -c '[ -f /home/core/monitoring/influx-graphana ] && docker load -i /home/core/monitoring/influx-graphana || echo "No image found."'
+      ExecStart=/usr/bin/sh -c '[ -f /home/core/monitoring/images ] && docker load -i /home/core/monitoring/images || echo "No images found."'
+      RemainAfterExit=yes
+  - name: cadvisor.service
+    command: start
+    content: |-
+      [Unit]
+      Description=cAdvisor Service
+      After=docker.service
+      Requires=docker.service
+      After=load-docker-images.service
+    
+      [Service]
+      Restart=always
+      ExecStartPre=-/usr/bin/docker kill cadvisor
+      ExecStartPre=-/usr/bin/docker rm -f cadvisor
+      ExecStartPre=/usr/bin/docker pull google/cadvisor
+      ExecStart=/usr/bin/docker run --name cadvisor --volume=/var/run:/var/run:rw --volume=/sys:/sys:ro --volume=/var/lib/docker/:/var/lib/docker:ro --publish=4194:4194 google/cadvisor --logtostderr --port=4194
+      ExecStop=/usr/bin/docker stop -t 2 cadvisor
