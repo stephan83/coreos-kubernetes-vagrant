@@ -1,0 +1,85 @@
+#cloud-config
+
+coreos:
+  etcd:
+    addr: $public_ipv4:4001
+    peer-addr: $private_ipv4:7001
+  fleet:
+    public-ip: $public_ipv4
+    metadata: minion=true
+  units:
+  - name: etcd.service
+    command: start
+  - name: fleet.service
+    command: start
+  - name: flannel.service
+    command: start
+    content: |
+      [Unit]
+      Requires=etcd.service
+      After=etcd.service
+      After=network-online.target
+      Wants=network-online.target
+      Description=flannel is an etcd backed overlay network for containers
+
+      [Service]
+      Type=notify
+      EnvironmentFile=/etc/environment
+      ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+      ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/k8s/flanneld
+      ExecStartPre=/usr/bin/chmod +x /opt/bin/flanneld
+      ExecStartPre=-/usr/bin/etcdctl mk /coreos.com/network/config '{"Network":"10.244.0.0/16", "Backend": {"Type": "vxlan"}}'
+      ExecStart=/opt/bin/flanneld -iface=${COREOS_PRIVATE_IPV4} -ip-masq=true
+  - name: docker.service
+    command: start
+    content: |
+      [Unit]
+      Description=Docker Application Container Engine
+      Requires=flannel.service
+      After=flannel.service
+      [Service]
+      EnvironmentFile=/run/flannel/subnet.env
+      ExecStartPre=/bin/mount --make-rprivate /
+      ExecStart=/usr/bin/docker -d -s=btrfs -H 0.0.0.0:2375 -H fd:// --insecure-registry=0.0.0.0/0 --bip=${FLANNEL_SUBNET} --mtu=${FLANNEL_MTU} $DOCKER_OPTIONS
+      [Install]
+      WantedBy=multi-user.target
+  - name: kube-proxy.service
+    command: start
+    content: |
+      [Unit]
+      Description=Kubernetes Proxy
+      Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+      Requires=network-online.target
+      After=network-online.target
+      [Service]
+      ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+      ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v0.5.4/bin/linux/amd64/kube-proxy
+      ExecStartPre=/usr/bin/chmod +x /opt/bin/kube-proxy
+      ExecStart=/opt/bin/kube-proxy \
+      --etcd_servers=http://127.0.0.1:4001 \
+      --logtostderr=true
+      Restart=always
+      RestartSec=10
+  - name: kube-kubelet.service
+    command: start
+    content: |
+      [Unit]
+      Description=Kubernetes Kubelet
+      Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+      After=etcd.service
+      After=docker.service
+      Wants=etcd.service
+      Wants=docker.service
+      [Service]
+      EnvironmentFile=/etc/environment
+      ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+      ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v0.5.4/bin/linux/amd64/kubelet
+      ExecStartPre=/usr/bin/chmod +x /opt/bin/kubelet
+      ExecStart=/opt/bin/kubelet -v=10 \
+      --address=0.0.0.0 \
+      --port=10250 \
+      --hostname_override=${COREOS_PRIVATE_IPV4} \
+      --etcd_servers=http://127.0.0.1:4001 \
+      --logtostderr=true
+      Restart=always
+      RestartSec=10
