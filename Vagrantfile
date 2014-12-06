@@ -4,9 +4,10 @@ require 'yaml'
 
 Vagrant.require_version ">= 1.6.0"
 
+SHARED_SRC_PATH = File.join(File.dirname(__FILE__), "shared.yml")
 MASTER_SRC_PATH = File.join(File.dirname(__FILE__), "master.yml")
-MASTER_DST_PATH = File.join(File.dirname(__FILE__), "master.tmp.yml")
 NODE_SRC_PATH = File.join(File.dirname(__FILE__), "node.yml")
+MASTER_DST_PATH = File.join(File.dirname(__FILE__), "master.tmp.yml")
 NODE_DST_PATH = File.join(File.dirname(__FILE__), "node.tmp.yml")
 
 $num_instances = 4
@@ -20,14 +21,32 @@ $vb_memory = 1024
 $vb_cpus = 1
 
 token = open('https://discovery.etcd.io/new').read
-data = YAML.load(IO.readlines(MASTER_SRC_PATH)[1..-1].join)
-data['coreos']['etcd']['discovery'] = token
-yaml = YAML.dump(data)
-File.open(MASTER_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{yaml}") }
-data = YAML.load(IO.readlines(NODE_SRC_PATH)[1..-1].join)
-data['coreos']['etcd']['discovery'] = token
-yaml = YAML.dump(data)
-File.open(NODE_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{yaml}") }
+
+class ::Hash
+    def deep_merge(second)
+        merger = proc { |key, v1, v2|
+          if Hash === v1 && Hash === v2
+            v1.merge(v2, &merger)
+          elsif Array === v1 && Array === v2
+            v1 + v2
+          else
+            v2
+          end
+        }
+        self.merge(second, &merger)
+    end
+end
+
+shared = YAML.load(IO.readlines(SHARED_SRC_PATH)[1..-1].join)
+master = YAML.load(IO.readlines(MASTER_SRC_PATH)[1..-1].join)
+node = YAML.load(IO.readlines(NODE_SRC_PATH)[1..-1].join)
+
+shared['coreos']['etcd']['discovery'] = token
+
+master = shared.deep_merge(master)
+node = shared.deep_merge(node)
+File.open(MASTER_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{YAML.dump(master)}") }
+File.open(NODE_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{YAML.dump(node)}") }
 
 Vagrant.configure("2") do |config|
   config.vm.box = "coreos-%s" % $update_channel
@@ -39,15 +58,12 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.provider :virtualbox do |vb|
-    # On VirtualBox, we don't have guest additions or a functional vboxsf
-    # in CoreOS, so tell Vagrant that so it can be smarter.
     vb.check_guest_additions = false
     vb.functional_vboxsf     = false
     vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
   end
 
-  # plugin conflict
   if Vagrant.has_plugin?("vagrant-vbguest") then
     config.vbguest.auto_update = false
   end

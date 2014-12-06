@@ -1,67 +1,9 @@
 #cloud-config
 
 coreos:
-  etcd:
-    addr: $public_ipv4:4001
-    peer-addr: $private_ipv4:7001
   fleet:
-    public-ip: $public_ipv4
     metadata: master=true
   units:
-  - name: etcd.service
-    command: start
-  - name: fleet.socket
-    command: start
-    content: |
-      [Socket]
-      ListenStream=/var/run/fleet.sock
-  - name: fleet.service
-    command: start
-    content: |
-      [Unit]
-      Description=fleet daemon
-      Wants=etcd.service
-      After=etcd.service
-      Wants=fleet.socket
-      After=fleet.socket
-      [Service]
-      Environment="FLEET_ETCD_SERVERS=http://127.0.0.1:4001"
-      ExecStart=/usr/bin/fleetd
-      Restart=always
-      RestartSec=10s
-  - name: flannel.service
-    command: start
-    content: |
-      [Unit]
-      Requires=etcd.service
-      After=etcd.service
-      After=network-online.target
-      Wants=network-online.target
-      Description=flannel is an etcd backed overlay network for containers
-
-      [Service]
-      Type=notify
-      EnvironmentFile=/etc/environment
-      ExecStartPre=-/usr/bin/mkdir -p /opt/bin
-      ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/k8s/flanneld
-      ExecStartPre=/usr/bin/chmod +x /opt/bin/flanneld
-      ExecStartPre=-/usr/bin/etcdctl mk /coreos.com/network/config '{"Network":"10.244.0.0/16", "Backend": {"Type": "vxlan"}}'
-      ExecStart=/opt/bin/flanneld -iface=${COREOS_PRIVATE_IPV4} -ip-masq=true
-  - name: docker.service
-    command: start
-    content: |
-      [Unit]
-      Description=Docker Application Container Engine
-      Requires=flannel.service
-      After=flannel.service
-
-      [Service]
-      EnvironmentFile=/run/flannel/subnet.env
-      ExecStartPre=/bin/mount --make-rprivate /
-      ExecStart=/usr/bin/docker -d -s=btrfs -H 0.0.0.0:2375 -H fd:// --insecure-registry=0.0.0.0/0 --bip=${FLANNEL_SUBNET} --mtu=${FLANNEL_MTU} $DOCKER_OPTIONS
-
-      [Install]
-      WantedBy=multi-user.target
   - name: kube-apiserver.service
     command: start
     content: |
@@ -139,7 +81,6 @@ coreos:
     content: |
       [Unit]
       Description=Install kubecfg
-
       [Service]
       Type=oneshot
       ExecStartPre=-/usr/bin/mkdir -p /opt/bin

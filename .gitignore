@@ -1,4 +1,3 @@
 .vagrant/
 log/
-master.tmp.yml
-minion.tmp.yml
+*.tmp.yml

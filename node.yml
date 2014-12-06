@@ -1,0 +1,46 @@
+#cloud-config
+
+coreos:
+  fleet:
+    metadata: minion=true
+  units:
+  - name: kube-proxy.service
+    command: start
+    content: |
+      [Unit]
+      Description=Kubernetes Proxy
+      Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+      Requires=network-online.target
+      After=network-online.target
+      [Service]
+      ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+      ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v0.5.4/bin/linux/amd64/kube-proxy
+      ExecStartPre=/usr/bin/chmod +x /opt/bin/kube-proxy
+      ExecStart=/opt/bin/kube-proxy \
+      --etcd_servers=http://127.0.0.1:4001 \
+      --logtostderr=true
+      Restart=always
+      RestartSec=10
+  - name: kube-kubelet.service
+    command: start
+    content: |
+      [Unit]
+      Description=Kubernetes Kubelet
+      Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+      After=etcd.service
+      After=docker.service
+      Wants=etcd.service
+      Wants=docker.service
+      [Service]
+      EnvironmentFile=/etc/environment
+      ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+      ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v0.5.4/bin/linux/amd64/kubelet
+      ExecStartPre=/usr/bin/chmod +x /opt/bin/kubelet
+      ExecStart=/opt/bin/kubelet -v=10 \
+      --address=0.0.0.0 \
+      --port=10250 \
+      --hostname_override=${COREOS_PRIVATE_IPV4} \
+      --etcd_servers=http://127.0.0.1:4001 \
+      --logtostderr=true
+      Restart=always
+      RestartSec=10
