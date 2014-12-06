@@ -6,8 +6,8 @@ Vagrant.require_version ">= 1.6.0"
 
 MASTER_SRC_PATH = File.join(File.dirname(__FILE__), "master.yml")
 MASTER_DST_PATH = File.join(File.dirname(__FILE__), "master.tmp.yml")
-MINION_SRC_PATH = File.join(File.dirname(__FILE__), "minion.yml")
-MINION_DST_PATH = File.join(File.dirname(__FILE__), "minion.tmp.yml")
+NODE_SRC_PATH = File.join(File.dirname(__FILE__), "node.yml")
+NODE_DST_PATH = File.join(File.dirname(__FILE__), "node.tmp.yml")
 
 $num_instances = 4
 $update_channel = "alpha"
@@ -24,10 +24,10 @@ data = YAML.load(IO.readlines(MASTER_SRC_PATH)[1..-1].join)
 data['coreos']['etcd']['discovery'] = token
 yaml = YAML.dump(data)
 File.open(MASTER_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{yaml}") }
-data = YAML.load(IO.readlines(MINION_SRC_PATH)[1..-1].join)
+data = YAML.load(IO.readlines(NODE_SRC_PATH)[1..-1].join)
 data['coreos']['etcd']['discovery'] = token
 yaml = YAML.dump(data)
-File.open(MINION_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{yaml}") }
+File.open(NODE_DST_PATH, 'w') { |file| file.write("#cloud-config\n\n#{yaml}") }
 
 Vagrant.configure("2") do |config|
   config.vm.box = "coreos-%s" % $update_channel
@@ -104,7 +104,7 @@ Vagrant.configure("2") do |config|
       # Uncomment below to enable NFS for sharing the host machine into the coreos-vagrant VM.
       #config.vm.synced_folder "./share/opt", "/opt", id: "core", :nfs => true, :mount_options => ['nolock,vers=3,udp']
 
-      user_data = i == 1 ? MASTER_DST_PATH : MINION_DST_PATH
+      user_data = i == 1 ? MASTER_DST_PATH : NODE_DST_PATH
 
       config.vm.provision :file, :source => user_data, :destination => "/tmp/vagrantfile-user-data"
       config.vm.provision :shell, :inline => "mv /tmp/vagrantfile-user-data /var/lib/coreos-vagrant/", :privileged => true
