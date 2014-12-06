@@ -1,28 +1,29 @@
 # CoreOS Kubernetes Vagrant
 
-Vagrant script to experiment with CoreOS and Kubernetes.
+**Currently broken**
 
-- `shared.yml` = master and node cloud-config
-- `master.yml` = master cloud-config, final config is shared.deep_merge(master)
-- `node.yml` = node cloud-config, final config is shared.deep_merge(node)
+Adds monitoring pods to `/home/core/monitoring`.
 
-By default, it creates one master (core-01) and three nodes (core-0[2..4]).
-
-It installs `kubecfg` on the master.
-
-Settings are in `Vagrantfile`.
-
-Example:
+See https://github.com/GoogleCloudPlatform/kubernetes/tree/master/examples/monitoring
 
 		$ vagrant up
-
 		...
-
 		$ vagrant ssh core-01 -- -A
+		$ cd monitoring
+		$ kubecfg -c influx-grafana-pod.json create pods
+		...
+		$ kubecfg -c influx-grafana-service.json create services
+		...
+		$ kubecfg -c heapster-pod.json create pods
+		...
+		$ kubecfg list pods
+		Name                Image(s)                                                                            Host                Labels              Status
+		----------          ----------                                                                          ----------          ----------          ----------
+		influx-grafana      kubernetes/heapster_influxdb,kubernetes/heapster_grafana,dockerfile/elasticsearch   172.17.8.103/       name=influxdb       Running
+		heapster            kubernetes/heapster                                                                 172.17.8.104/       name=heapster       Running
 
-		$ kubecfg list minions
-		Minion identifier
-		----------
-		172.17.8.102
-		172.17.8.104
-		172.17.8.103
+In this example the UX is available on 172.17.8.103:80
+
+### Notes
+
+It can take a long time before the pods are ready!

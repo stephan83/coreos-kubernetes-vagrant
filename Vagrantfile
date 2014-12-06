@@ -14,11 +14,11 @@ $num_instances = 4
 $update_channel = "alpha"
 #$expose_docker_tcp = 2375
 #$expose_etcd_tcp = 4001
-#$expose_http = 3000
+$expose_http = 3000
 $enable_serial_logging = false
 $vb_gui = false
 $vb_memory = 1024
-$vb_cpus = 1
+$vb_cpus = 2
 
 token = open('https://discovery.etcd.io/new').read
 
@@ -101,7 +101,7 @@ Vagrant.configure("2") do |config|
       end
 
       if $expose_http
-        config.vm.network "forwarded_port", guest: 8080, host: ($expose_http + i - 1), auto_correct: true
+        config.vm.network "forwarded_port", guest: 80, host: ($expose_http + i - 1), auto_correct: true
       end
 
       config.vm.provider :vmware_fusion do |vb|
@@ -118,7 +118,7 @@ Vagrant.configure("2") do |config|
       config.vm.network :private_network, ip: ip
 
       # Uncomment below to enable NFS for sharing the host machine into the coreos-vagrant VM.
-      #config.vm.synced_folder "./share/opt", "/opt", id: "core", :nfs => true, :mount_options => ['nolock,vers=3,udp']
+      config.vm.synced_folder "./monitoring", "/home/core/monitoring", id: "core", :nfs => true, :mount_options => ['nolock,vers=3,udp']
 
       user_data = i == 1 ? MASTER_DST_PATH : NODE_DST_PATH
 
