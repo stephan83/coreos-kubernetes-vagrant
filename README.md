@@ -1,10 +1,14 @@
 # CoreOS Kubernetes Vagrant + Heapster Monitoring
 
-**Currently broken**
-
 Adds monitoring manifests to `/home/core/monitoring`.
 
 See: https://github.com/GoogleCloudPlatform/heapster
+
+**Important**
+
+At time of writing Kubernetes HEAD is required. You need to build it and put all the binaries in a folder `opt/bin` **inside** this directory.
+
+## Usage
 
 		$ vagrant up
 		...
@@ -26,7 +30,7 @@ In this example the UX is available on 172.17.8.103:80 (check the ip of the node
 
 The default credentials are **admin**:**admin**.
 
-### Notes
+## Notes
 
 It can take a long time before the pods are ready! That's why I set the config to only spawn one master and one node.
 
